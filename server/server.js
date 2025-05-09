@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import { Webhook } from "svix";
 import connectDB from "./configs/mongodb.js";
 import { clerkWebhook } from "./controllers/webhooks.js";
 
@@ -11,11 +10,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Clerk webhook route - must use raw body parser
-app.post(
-  "/clerk",
-  // Important: express.raw() instead of bodyParser.raw()
-  express.raw({ type: "application/json" }), 
+// Clerk webhook route - critical raw body handling
+app.post("/clerk", 
+  (req, res, next) => {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      req.rawBody = data;
+      next();
+    });
+  },
   clerkWebhook
 );
 
