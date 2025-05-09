@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
-import bodyParser from "body-parser";
+import { Webhook } from "svix";
 import connectDB from "./configs/mongodb.js";
 import { clerkWebhook } from "./controllers/webhooks.js";
 
@@ -9,10 +9,15 @@ const app = express();
 
 // Global middlewares
 app.use(cors());
-app.use(express.json()); // This is OK globally
+app.use(express.json());
 
-// Raw body only for Clerk webhook
-app.post("/clerk", bodyParser.raw({ type: "application/json" }), clerkWebhook);
+// Clerk webhook route - must use raw body parser
+app.post(
+  "/clerk",
+  // Important: express.raw() instead of bodyParser.raw()
+  express.raw({ type: "application/json" }), 
+  clerkWebhook
+);
 
 // Test route
 app.get("/", (req, res) => res.send("API working"));
