@@ -13,6 +13,7 @@ export default function Player() {
   const [courseData, setCourseData] = useState(null);
   const [openSection, setOpenSection] = useState({});
   const [playerData, setPlayerData] = useState(null);
+
   const getCourseData = () => {
     if (!enrollCourses) return;
 
@@ -21,18 +22,45 @@ export default function Player() {
       setCourseData(foundCourse);
     }
   };
+
   const toggleSection = (index) => {
     setOpenSection((prev) => ({ ...prev, [index]: !prev[index] }));
   };
+
   useEffect(() => {
     getCourseData();
   }, [enrollCourses]);
+
   return (
     <div>
       <div className="p-4 sm:p-10 sm:flex sm:flex-col-reverse md:grid md:grid-cols-2 gap-10 md:px-36">
-        {/* left coloumn */}
-        <div className="text-gray-800">
-          <h2 className="text-xl font-semibold">Course Structere</h2>
+        {/* right column (video) */}
+        <div className="md:mt-10 order-1 md:order-2">
+          {playerData ? (
+            <div>
+              <YouTube
+                key={playerData.lectureUrl} // this forces re-render
+                videoId={playerData.lectureUrl.split("/").pop()}
+                iframeClassName="w-full aspect-video"
+              />
+              <div className="flex items-center justify-between mt-1">
+                <p>
+                  {playerData.chapter}.{playerData.lecture}{" "}
+                  {playerData.lectureTitle}
+                </p>
+                <button className="text-blue-600 cursor-pointer">
+                  {false ? "complete" : "Mark As Complete"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <img src={courseData ? courseData.courseThumbnail : null} alt="" />
+          )}
+        </div>
+
+        {/* left column (course structure) */}
+        <div className="text-gray-800 order-2 md:order-1">
+          <h2 className="text-xl font-semibold">Course Structure</h2>
           <div className="pt-5">
             {courseData &&
               courseData.courseContent.map((chapter, index) => (
@@ -45,13 +73,19 @@ export default function Player() {
                     onClick={() => toggleSection(index)}
                   >
                     <div className="flex items-center gap-2">
-                      <img src={assets.down_arrow_icon} alt="arrow icon" />
+                      <img
+                        src={assets.down_arrow_icon}
+                        alt="arrow icon"
+                        className={`w-4 h-4 transform transition-transform duration-300 ${
+                          openSection[index] ? "rotate-180" : ""
+                        }`}
+                      />
                       <p className="font-medium md:text-base text-sm">
                         {chapter.chapterTitle}
                       </p>
                     </div>
                     <p className="text-sm md:text-default">
-                      {chapter.chapterContent.length} lectuers -{" "}
+                      {chapter.chapterContent.length} lectures -{" "}
                       {calculateCapterTime(chapter)}
                     </p>
                   </div>
@@ -69,7 +103,7 @@ export default function Player() {
                               false ? assets.blue_tick_icon : assets.play_icon
                             }
                             alt="play"
-                            ClassName={`w-5 h-5 transform transition-transform duration-300 ${
+                            className={`w-5 h-5 transform transition-transform duration-300 ${
                               openSection[index] ? "rotate-180" : ""
                             }`}
                           />
@@ -107,32 +141,8 @@ export default function Player() {
           </div>
           <div className="flex items-center gap-2 py-3 mt-10">
             <h1 className="text-xl font-bold">Rate this course:</h1>
-            <Rating initialRating={0}/>
+            <Rating initialRating={0} />
           </div>
-        </div>
-
-        {/* right column */}
-        <div ClassName="md:mt-10">
-          {playerData ? (
-            <div>
-              <YouTube
-                key={playerData.lectureUrl} // this forces re-render
-                videoId={playerData.lectureUrl.split("/").pop()}
-                iframeClassName="w-full aspect-video"
-              />
-              <div className="flex items-center justify-between mt-1">
-                <p>
-                  {playerData.chapter}.{playerData.lecture}{" "}
-                  {playerData.lectureTitle}
-                </p>
-                <button className="text-blue-600 cursor-pointer">
-                  {false ? "complete" : "Mark As Complete"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <img src={courseData ? courseData.courseThumbnail : null} alt="" />
-          )}
         </div>
       </div>
       <Footer />

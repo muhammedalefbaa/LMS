@@ -6,13 +6,21 @@ export default function MyCourses() {
   const { currency, allCourses } = useContext(AppContext);
   const [courses, setCourses] = useState(null);
 
-  const feachEducatorCourses = async () => {
-    setCourses(allCourses);
+  const fetchEducatorCourses = async () => {
+    if (Array.isArray(allCourses)) {
+      setCourses(allCourses);
+    } else {
+      setCourses([]);
+    }
   };
+
   useEffect(() => {
-    feachEducatorCourses();
+    fetchEducatorCourses();
   }, []);
-  return courses ? (
+
+  if (!courses) return <Loading />;
+
+  return (
     <div className="h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pb-0">
       <div className="w-full">
         <h2 className="pb-4 text-lg font-medium">My Courses</h2>
@@ -20,40 +28,54 @@ export default function MyCourses() {
           <table className="md:table-auto table-fixed w-full overflow-hidden">
             <thead className="text-gray-900 border-b border-gray-500/20 text-sm text-left">
               <tr>
-                <th className="px-4 py-3 font-semibold turncate">
+                <th className="px-4 py-3 font-semibold truncate">
                   All Courses
                 </th>
-                <th className="px-4 py-3 font-semibold turncate">Earnings</th>
-                <th className="px-4 py-3 font-semibold turncate">Students</th>
-                <th className="px-4 py-3 font-semibold turncate">
+                <th className="px-4 py-3 font-semibold truncate">Earnings</th>
+                <th className="px-4 py-3 font-semibold truncate">Students</th>
+                <th className="px-4 py-3 font-semibold truncate">
                   Published On
                 </th>
               </tr>
             </thead>
             <tbody className="text-sm text-gray-500">
-              {courses.map((course) => (
-                <tr className="border-b border-gray-500/20">
-                  <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 truncate">
-                    <img src={course.courseThumbnail} alt="course"  className="w-16"/>
-                    <span className="truncate hidden md:block">{course.courseTitle}</span>
-                  </td>
-                  <td className="px-4 py-3 truncate">
-                    {currency} {Math.floor(course.enrolledStudents.length * (course.coursePrice - course.discount*course.coursePrice/100))}
-                  </td>
-                  <td className="px-4 py-3 truncate">
-                    {course.enrolledStudents.length}
-                  </td>
-                  <td className="px-4 py-3 truncate">
-                    {new Date(course.createdAt).toDateString()}
-                  </td>
-                </tr>
-              ))}
+              {courses.map((course) => {
+                const earnings = Math.floor(
+                  course.enrolledStudents.length *
+                    (course.coursePrice -
+                      (course.discount * course.coursePrice) / 100)
+                );
+                return (
+                  <tr
+                    key={course._id || course.courseTitle}
+                    className="border-b border-gray-500/20"
+                  >
+                    <td className="md:px-4 pl-2 md:pl-4 py-3 flex items-center space-x-3 truncate">
+                      <img
+                        src={course.courseThumbnail}
+                        alt="course"
+                        className="w-16"
+                      />
+                      <span className="truncate hidden md:block">
+                        {course.courseTitle}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 truncate">
+                      {currency} {earnings}
+                    </td>
+                    <td className="px-4 py-3 truncate">
+                      {course.enrolledStudents.length}
+                    </td>
+                    <td className="px-4 py-3 truncate">
+                      {new Date(course.createdAt).toDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  ) : (
-    <Loading />
   );
 }
