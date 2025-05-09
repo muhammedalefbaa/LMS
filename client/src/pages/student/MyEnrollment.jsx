@@ -1,10 +1,11 @@
 import React, { useContext, useState } from "react";
 import { AppContext } from "../../context/AppContext";
-import {Line} from "rc-progress";
+import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
 
 export default function MyEnrollment() {
-  const { enrollCourses, calculateCourseDuration, navigate } = useContext(AppContext);
+  const { enrollCourses, calculateCourseDuration, navigate } =
+    useContext(AppContext);
   const [progressArray, setProgressArray] = useState([
     { lectuerCompleted: 2, totalLectuers: 10 },
     { lectuerCompleted: 4, totalLectuers: 10 },
@@ -31,31 +32,45 @@ export default function MyEnrollment() {
           <tbody className="text-gray-600">
             {Array.isArray(enrollCourses) &&
               enrollCourses.map((course, index) => (
-                <tr key={index} className="border-t border-gray-200">
-                  <td className="md:px-4 pl-2 md:pl4 py-3 flex items-center space-x-3">
+                <tr
+                  key={index}
+                  className="border-t border-gray-200 flex flex-col sm:table-row sm:border-t-0 sm:border-b sm:border-gray-200 sm:table w-full"
+                >
+                  <td className="px-4 py-3 flex sm:table-cell sm:px-4 sm:py-3 items-start sm:items-center space-x-0 sm:space-x-3 flex-col sm:flex-row">
                     <img
                       src={course.courseThumbnail}
                       alt={course.courseTitle}
-                      className=" rounded object-cover sm:w-24 md:w-28"
+                      className="rounded object-cover  sm:w-28 sm:h-20 mb-2 sm:mb-0"
                     />
                     <div className="flex-1">
-                      <p className="mb-1 max-sm:text-sm">
+                      <p className="text-sm truncate max-w-[200px] sm:max-w-full font-medium">
                         {course.courseTitle}
                       </p>
-                      <Line strockWidth={2} percent={((progressArray[index].lectuerCompleted / progressArray[index].totalLectuers) * 100)} className="bg-gray-300 rounded-full"/>
+                      <Line
+                        strokeWidth={2}
+                        percent={
+                          (progressArray[index].lectuerCompleted /
+                            progressArray[index].totalLectuers) *
+                          100
+                        }
+                        className="bg-gray-300 rounded-full mt-1"
+                      />
                     </div>
                   </td>
-                  <td className="px-4 py-3 max-sm:hidden">
+
+                  <td className="px-4 py-2 sm:table-cell sm:px-4 sm:py-3 text-sm">
                     {calculateCourseDuration(course)}
                   </td>
-                  <td className="px-4 py-3 max-sm:hidden">
+
+                  <td className="px-4 py-2 sm:table-cell sm:px-4 sm:py-3 text-sm">
                     {progressArray[index] &&
                       `${progressArray[index].lectuerCompleted} / ${progressArray[index].totalLectuers}`}{" "}
                     <span className="text-xs text-gray-500">lectures</span>
                   </td>
-                  <td className="px-4 py-3 max-sm:text-right">
+
+                  <td className="px-4 py-2 sm:table-cell sm:px-4 sm:py-3 text-sm text-right sm:text-left">
                     <button
-                      className={` text-white text-xs px-3 py-1 rounded cursor-pointer ${
+                      className={`text-white text-xs px-3 py-1 rounded cursor-pointer ${
                         progressArray[index].lectuerCompleted ===
                         progressArray[index].totalLectuers
                           ? "bg-green-500"
