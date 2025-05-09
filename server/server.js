@@ -1,23 +1,22 @@
 import express from "express";
 import cors from "cors";
 import "dotenv/config";
+import bodyParser from "body-parser";
 import connectDB from "./configs/mongodb.js";
 import { clerkWebhook } from "./controllers/webhooks.js";
 
 const app = express();
 
-// Middlewares
+// Global middlewares
 app.use(cors());
-app.use(express.json()); // For all other routes
+app.use(express.json()); // This is OK globally
 
-// Webhook route must come BEFORE express.json() is applied to it
-import bodyParser from "body-parser";
-app.post('/clerk', bodyParser.raw({ type: 'application/json' }), clerkWebhook);
+// Raw body only for Clerk webhook
+app.post("/clerk", bodyParser.raw({ type: "application/json" }), clerkWebhook);
 
-// Basic test route
+// Test route
 app.get("/", (req, res) => res.send("API working"));
 
-// Start server
 const startServer = async () => {
   try {
     await connectDB();
