@@ -11,7 +11,7 @@ import AddCourse from "./pages/educator/AddCourse";
 import MyCourses from "./pages/educator/MyCourses";
 import StudentsEnrolled from "./pages/educator/StudentsEnrolled";
 import Navbar from "./components/student/Navbar";
-import CourseDetails from "./pages/student/CourseDEtails";
+import CourseDetails from "./pages/student/CourseDetails";
 import "quill/dist/quill.snow.css"
 
 export default function App() {
