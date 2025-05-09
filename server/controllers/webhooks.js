@@ -1,52 +1,45 @@
 import { Webhook } from "svix";
 import User from "../models/user.js";
 
-export const clerkWebhook = async (req, res) => {
-  return new Promise((resolve) => {
-    let data = '';
-    
-    // Manually collect raw data stream
-    req.on('data', chunk => {
-      data += chunk;
-    });
+export const clerkWebhook = async (req, res, rawBody) => {
+  try {
+    // Verify we have the raw body
+    if (!rawBody) {
+      throw new Error("No raw body received");
+    }
 
-    req.on('end', async () => {
-      try {
-        const headers = {
-          "svix-id": req.headers["svix-id"],
-          "svix-timestamp": req.headers["svix-timestamp"],
-          "svix-signature": req.headers["svix-signature"],
-        };
+    const headers = {
+      "svix-id": req.headers["svix-id"],
+      "svix-timestamp": req.headers["svix-timestamp"],
+      "svix-signature": req.headers["svix-signature"],
+    };
 
-        // Verify webhook
-        const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
-        const evt = wh.verify(data, headers);
-        const { data: userData, type } = evt;
+    // Verify webhook
+    const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
+    const evt = wh.verify(rawBody, headers);
+    const { data, type } = evt;
 
-        console.log("✅ Webhook verified:", type);
+    console.log("Webhook verified:", type);
 
-        // Process events
-        switch (type) {
-          case "user.created":
-            await User.create({
-              _id: userData.id,
-              email: userData.email_addresses[0]?.email_address,
-              imageUrl: userData.image_url
-            });
-            break;
-        }
-
-        res.json({ success: true });
-        resolve();
-      } catch (err) {
-        console.error("❌ Webhook failed:", {
-          error: err.message,
-          rawBody: data.substring(0, 100), // Log first 100 chars
-          headers: req.headers
+    // Process events
+    switch (type) {
+      case "user.created":
+        await User.create({
+          _id: data.id,
+          email: data.email_addresses[0]?.email_address,
+          imageUrl: data.image_url,
         });
-        res.status(400).json({ error: "Webhook failed" });
-        resolve();
-      }
+        break;
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Webhook error:", {
+      message: err.message,
+      stack: err.stack,
+      rawBody: rawBody?.substring(0, 100),
+      headers: req.headers,
     });
-  });
+    return res.status(400).json({ error: "Webhook processing failed" });
+  }
 };
