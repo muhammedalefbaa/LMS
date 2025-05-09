@@ -10,19 +10,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Clerk webhook route - critical raw body handling
-app.post("/clerk", 
-  (req, res, next) => {
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk) => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      req.rawBody = data;
-      next();
-    });
-  },
+// Clerk webhook route - MUST use express.raw() with correct type
+app.post(
+  "/clerk",
+  express.raw({ type: "application/json" }), // This is crucial
   clerkWebhook
 );
 

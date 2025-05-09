@@ -3,20 +3,25 @@ import User from "../models/user.js";
 
 export const clerkWebhook = async (req, res) => {
   try {
-    // Get the raw body from our middleware
-    const payload = req.rawBody;
+    // The payload is already properly parsed by express.raw()
+    const payload = req.body;
     
-    // Get headers (Clerk uses multiple naming conventions)
+    // Verify we have the raw body as Buffer
+    if (!Buffer.isBuffer(payload)) {
+      throw new Error("Payload must be a Buffer");
+    }
+
+    // Prepare headers (Clerk uses multiple naming conventions)
     const headers = {
       "svix-id": req.headers["svix-id"] || req.headers["webhook-id"],
       "svix-timestamp": req.headers["svix-timestamp"] || req.headers["webhook-timestamp"],
       "svix-signature": req.headers["svix-signature"] || req.headers["webhook-signature"],
     };
 
-    // Debug log (remove in production)
+    // Debug output (remove in production)
     console.log("Webhook received", {
       payloadLength: payload.length,
-      headersPresent: !!headers["svix-signature"]
+      headers: headers
     });
 
     // Verify webhook
@@ -54,7 +59,8 @@ export const clerkWebhook = async (req, res) => {
   } catch (err) {
     console.error("❌ Webhook error:", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
+      receivedBody: req.body?.toString().substring(0, 100) // Log first 100 chars
     });
     return res.status(400).json({ 
       error: "Webhook processing failed",
