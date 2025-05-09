@@ -8,13 +8,16 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json()); // Recommended if you're working with JSON bodies
+app.use(express.json()); // For all other routes
 
-// Routes
+// Webhook route must come BEFORE express.json() is applied to it
+import bodyParser from "body-parser";
+app.post('/clerk', bodyParser.raw({ type: 'application/json' }), clerkWebhook);
+
+// Basic test route
 app.get("/", (req, res) => res.send("API working"));
-app.post('/clerk', express.json(), clerkWebhook);
 
-// Start server inside an async function
+// Start server
 const startServer = async () => {
   try {
     await connectDB();
