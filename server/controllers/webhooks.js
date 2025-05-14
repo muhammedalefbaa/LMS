@@ -1,45 +1,52 @@
 import { Webhook } from "svix";
 import User from "../models/user.js";
 
-export const clerkWebhook = async (req, res, rawBody) => {
+//api controller method to manage clerk user from database
+export const clerkWebhooks = async (req, res) => {
   try {
-    // Verify we have the raw body
-    if (!rawBody) {
-      throw new Error("No raw body received");
-    }
+    const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
 
-    const headers = {
+    await whook.verify(JSON.stringify(req.body), {
       "svix-id": req.headers["svix-id"],
       "svix-timestamp": req.headers["svix-timestamp"],
       "svix-signature": req.headers["svix-signature"],
-    };
+    });
 
-    // Verify webhook
-    const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
-    const evt = wh.verify(rawBody, headers);
-    const { data, type } = evt;
-
-    console.log("Webhook verified:", type);
-
-    // Process events
+    const { data, type } = req.body;
     switch (type) {
-      case "user.created":
-        await User.create({
+      case "user.created": {
+        const userData = {
           _id: data.id,
-          email: data.email_addresses[0]?.email_address,
+          email: data.email_addresses[0].email_address,
+          name: data.first_name + " " + data.last_name,
           imageUrl: data.image_url,
-        });
+        };
+        await User.create(userData);
+        res.json({});
+        break;
+      }
+
+      case "user.updated": {
+        const userData = {
+          email: data.email_addresses[0].email_address,
+          name: data.first_name + " " + data.last_name,
+          imageUrl: data.image_url,
+        };
+        await User.findByIdAndUpdate(data.id, userData);
+        res.json({});
+        break;
+      }
+
+      case "user.deleted": {
+        await User.findByIdAndDelete(data.id);
+        res.json({});
+        break;
+      }
+      default:
         break;
     }
-
-    return res.json({ success: true });
-  } catch (err) {
-    console.error("Webhook error:", {
-      message: err.message,
-      stack: err.stack,
-      rawBody: rawBody?.substring(0, 100),
-      headers: req.headers,
-    });
-    return res.status(400).json({ error: "Webhook processing failed" });
+  } catch (error) {
+    res.json({ sucsess: false, messeage: error.message });
+    console.log(error);
   }
 };
