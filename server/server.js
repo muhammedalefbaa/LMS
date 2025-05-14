@@ -1,20 +1,34 @@
 import express from "express";
+import cors from "cors";
 import "dotenv/config";
-import { clerkWebhook } from "./controllers/webhooks.js";
+import connectDB from "./configs/mongodb.js";
+
+// init express
 
 const app = express();
 
-// Disable all body parsing for webhook route
-app.post("/clerk", (req, res) => {
-  let data = "";
-  req.on("data", (chunk) => (data += chunk));
-  req.on("end", () => clerkWebhook(req, res, data));
+//call the database
+
+connectDB();
+
+// middlewares
+
+app.use(cors());
+
+//routes
+
+app.get("/", (req, res) => {
+  res.send("hello from server");
 });
 
-// Regular JSON middleware for other routes
-app.use(express.json());
+// PORT
 
-app.get("/", (req, res) => res.send("API working"));
+const PORT = process.env.PORT || 5000;
 
-// Vercel needs this export
-export default app;
+// listen
+app.listen(PORT, () => {
+  console.log("Server running on port ", PORT);
+});
+
+
+
