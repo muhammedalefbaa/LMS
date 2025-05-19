@@ -28,12 +28,12 @@ app.use(clerkMiddleware());
 app.get("/", (req, res) => {
   res.send("hello from server");
 });
+app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks)
 app.post("/clerk", express.json(), clerkWebhooks);
 
 app.use("/api/educator", express.json(), educatorRoute);
 app.use("/api/course", express.json(), courseRoute);
 app.use("/api/user", express.json(), userRoute);
-app.post("/stripe", express.raw({ type: "application/json" }), stripeWebhooks)
 
 // PORT
 

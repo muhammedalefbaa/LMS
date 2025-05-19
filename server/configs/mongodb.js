@@ -6,7 +6,7 @@ const connectDB = async () => {
     console.log("MongoDB connected");
   });
 
-  await mongoose.connect(`${process.env.MONGO_URI}/lms`);
+  await mongoose.connect(`${process.env.MONGO_URI}/lms?retryWrites=true&w=majority`);
 };
 
 export default connectDB;
