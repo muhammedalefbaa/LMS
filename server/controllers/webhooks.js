@@ -76,7 +76,7 @@ export const stripeWebhooks = async (req, res) => {
   console.log("📦 event.type:", event.type);
 
   switch (event.type) {
-    case "payment_intent.succeeded": {
+    case "checkout.session.completed": {
       const session = event.data.object;
 
       try {

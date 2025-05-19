@@ -87,10 +87,9 @@ export const purchaseCourse = async (req, res) => {
         purchaseId: newPurchase._id.toString(),
       },
     });
-   
+
     res.json({ success: true, url: session.url });
   } catch (error) {
     res.json({ success: false, message: error.message });
-    
   }
 };
