@@ -3,7 +3,7 @@ import User from '../models/user.js';
 import Course from '../models/course.js';
 
 // MongoDB connection string - replace with your actual connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/lms';
+const MONGODB_URI = 'mongodb+srv://muhammedalefbaa:chxtVmVv1g0cdCCe@cluster0.rrdmdql.mongodb.net/lms?retryWrites=true&w=majority';
 
 // Dummy data from assets.js
 const dummyEducatorData = {

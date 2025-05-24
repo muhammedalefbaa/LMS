@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
 import Loading from "../../components/student/Loading";
-import { toast } from "react-toastify";
 
 export default function MyCourses() {
   const { currency, getEducatorCourses } = useContext(AppContext);
@@ -13,12 +12,10 @@ export default function MyCourses() {
       if (response.success) {
         setCourses(response.courses);
       } else {
-        toast.error(response.message || "Failed to fetch courses");
         setCourses([]);
       }
     } catch (error) {
       console.error("Error fetching educator courses:", error);
-      toast.error(error.message || "Failed to fetch courses");
       setCourses([]);
     }
   };

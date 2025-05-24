@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import uniqid from "uniqid";
-import Quill from "quill";
-import "quill/dist/quill.snow.css";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import assets from "../../assets/assets";
 import { useNavigate } from "react-router-dom";
+import { AppContext } from "../../context/AppContext";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { AppContext } from "../../context/AppContext";
 
 const initialLectureDetails = {
   lectureTitle: "",
@@ -16,8 +16,7 @@ const initialLectureDetails = {
 };
 
 export default function AddCourse() {
-  const quillRef = useRef(null);
-  const editorRef = useRef(null);
+  const [editorContent, setEditorContent] = useState('');
   const [formData, setFormData] = useState({
     courseTitle: "",
     coursePrice: 0,
@@ -30,24 +29,6 @@ export default function AddCourse() {
   const [lectureDetails, setLectureDetails] = useState(initialLectureDetails);
   const navigate = useNavigate();
   const { addNewCourse } = useContext(AppContext);
-
-  // Initialize Quill editor
-  useEffect(() => {
-    if (!quillRef.current && editorRef.current) {
-      quillRef.current = new Quill(editorRef.current, {
-        theme: "snow",
-        modules: {
-          toolbar: [
-            [{ header: [1, 2, false] }],
-            ["bold", "italic", "underline", "strike"],
-            [{ list: "ordered" }, { list: "bullet" }],
-            ["link", "image"],
-            ["clean"],
-          ],
-        },
-      });
-    }
-  }, []);
 
   // Handle form input changes
   const handleInputChange = useCallback((field, value) => {
@@ -132,70 +113,39 @@ export default function AddCourse() {
   }, [currentChapterId, lectureDetails]);
 
   // Handle form submission
-  const handleSubmit = useCallback(
-    async e => {
-      e.preventDefault();
-      try {
-        if (!formData.image) {
-          toast.error("Please upload a course thumbnail");
-          console.log("Error toast triggered: Missing thumbnail");
-          return;
-        }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.image) {
+      console.error("Please upload a course thumbnail");
+      return;
+    }
 
-        const description = quillRef.current?.root.innerHTML;
-        const courseData = {
-          courseTitle: formData.courseTitle,
-          coursePrice: formData.coursePrice,
-          discount: formData.discount,
-          courseDescription: description,
-          chapters,
-        };
-        
-        console.log("Submitting course data:", courseData);
-        const response = await addNewCourse(courseData, formData.image);
-        console.log("Server response:", response);
-        
-        if (response.success) {
-          toast.success("Course added successfully");
-          console.log("Success toast triggered with:", "Course added successfully");
-          setTimeout(() => {
-            console.log("Navigating to my-courses after delay");
-            navigate("/educator/my-courses");
-          }, 2000);
-        } else {
-          const errorMsg = response.message || "Failed to add course";
-          toast.error(errorMsg);
-          console.log("Error toast triggered with:", errorMsg);
-          
-          // If it's an authentication error, redirect to login
-          if (errorMsg.toLowerCase().includes('authentication') || 
-              errorMsg.toLowerCase().includes('token') ||
-              errorMsg.toLowerCase().includes('unauthorized')) {
-            console.log("Authentication error detected, redirecting to login");
-            setTimeout(() => {
-              navigate("/");
-            }, 2000);
-          }
-        }
-      } catch (error) {
-        console.error("Full error object:", error);
-        const errorMsg = error.message || "Failed to add course";
-        toast.error(errorMsg);
-        console.log("Error toast triggered with:", errorMsg);
-        
-        // If it's an authentication error, redirect to login
-        if (errorMsg.toLowerCase().includes('authentication') || 
-            errorMsg.toLowerCase().includes('token') ||
-            errorMsg.toLowerCase().includes('unauthorized')) {
-          console.log("Authentication error detected, redirecting to login");
-          setTimeout(() => {
-            navigate("/");
-          }, 2000);
-        }
+    try {
+      const courseData = {
+        courseTitle: formData.courseTitle,
+        coursePrice: formData.coursePrice,
+        discount: formData.discount,
+        courseDescription: editorContent,
+        chapters,
+      };
+      
+      console.log("Submitting course data:", courseData);
+      const response = await addNewCourse(courseData, formData.image);
+      console.log("Server response:", response);
+      
+      if (response.success) {
+        toast.success("Course added successfully!");
+        setTimeout(() => {
+          navigate("/educator/my-courses");
+        }, 2000);
+      } else {
+        console.error("Failed to add course:", response.message);
       }
-    },
-    [formData, chapters, navigate, addNewCourse]
-  );
+    } catch (error) {
+      console.error("Error adding course:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -224,9 +174,20 @@ export default function AddCourse() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Course Description
             </label>
-            <div
-              ref={editorRef}
-              className="h-48 border border-gray-300 rounded-md bg-white"
+            <ReactQuill
+              value={editorContent}
+              onChange={setEditorContent}
+              className="h-48"
+              theme="snow"
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, false] }],
+                  ['bold', 'italic', 'underline', 'strike'],
+                  [{ list: 'ordered' }, { list: 'bullet' }],
+                  ['link', 'image'],
+                  ['clean']
+                ]
+              }}
             />
           </div>
 

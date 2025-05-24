@@ -3,7 +3,6 @@ import { AppContext } from "../../context/AppContext";
 import assets from "../../assets/assets";
 import Loading from "../../components/student/Loading";
 import axios from "axios";
-import { toast } from "react-toastify";
 
 export default function Dashboard() {
   const { currency, backUrl, getToken } = useContext(AppContext);
@@ -12,28 +11,14 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       const token = await getToken();
-      const { data } = await axios.get(`${backUrl}api/educator/dashboard`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const { data } = await axios.get(backUrl + "api/educator/dashboard", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (data.success) {
-        setDashboardData(data.dashboardData);
-      } else {
-        toast.error(data.message || "Failed to fetch dashboard data");
-        setDashboardData({
-          enrolledStudentsData: [],
-          totalCourses: 0,
-          totalEarnings: 0
-        });
+        setDashboardData(data);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch dashboard data");
-      setDashboardData({
-        enrolledStudentsData: [],
-        totalCourses: 0,
-        totalEarnings: 0
-      });
     }
   };
 

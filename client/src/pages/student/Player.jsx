@@ -7,7 +7,7 @@ import YouTube from "react-youtube";
 import Footer from "../../components/student/Footer";
 import Rating from "../../components/student/Rating";
 import axios from "axios";
-import { toast } from "react-toastify";
+import Loading from "../../components/student/Loading";
 
 export default function Player() {
   const { enrollCourses, calculateCapterTime, backUrl, getToken } = useContext(AppContext);
@@ -16,6 +16,9 @@ export default function Player() {
   const [openSection, setOpenSection] = useState({});
   const [playerData, setPlayerData] = useState(null);
   const [completedLectures, setCompletedLectures] = useState([]);
+  const [progress, setProgress] = useState({
+    completedLectures: [],
+  });
 
   const getCourseData = () => {
     if (!enrollCourses) return;
@@ -35,40 +38,33 @@ export default function Player() {
       );
       if (data.success && data.progressData) {
         setCompletedLectures(data.progressData.lectuerCompleted || []);
+        setProgress(data.progressData);
       }
     } catch (error) {
       console.error("Error fetching progress:", error);
     }
   };
 
-  const markAsComplete = async () => {
-    if (!playerData) return;
-    
+  const markLectureComplete = async () => {
     try {
       const token = await getToken();
       const { data } = await axios.post(
-        `${backUrl}api/user/update-course-progress`,
+        backUrl + "api/user/mark-complete",
         {
           courseId,
-          lectuerId: playerData.lectureId
+          lectureId: playerData.lectureId,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
       if (data.success) {
-        setCompletedLectures(prev => {
-          if (!prev.includes(playerData.lectureId)) {
-            return [...prev, playerData.lectureId];
-          }
-          return prev;
-        });
-        toast.success("Lecture marked as completed!");
-      } else {
-        toast.error(data.message || "Failed to mark lecture as complete");
+        // Update progress locally
+        setProgress(prev => ({
+          ...prev,
+          completedLectures: [...prev.completedLectures, playerData.lectureId]
+        }));
       }
     } catch (error) {
-      console.error("Error marking lecture as complete:", error);
-      toast.error("Failed to mark lecture as complete");
+      console.error("Failed to mark lecture as complete:", error);
     }
   };
 
@@ -104,7 +100,7 @@ export default function Player() {
                   {playerData.lectureTitle}
                 </p>
                 <button 
-                  onClick={markAsComplete}
+                  onClick={markLectureComplete}
                   className={`text-white px-3 py-1 rounded ${
                     completedLectures.includes(playerData.lectureId)
                       ? "bg-green-500"

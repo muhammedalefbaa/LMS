@@ -1,11 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useEffect, useState } from "react";
-import { dummyCourses } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import huminizeDuration from "humanize-duration";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import axios from "axios";
-import { toast } from "react-toastify";
 
 export const AppContext = createContext();
 
@@ -16,6 +14,7 @@ export const AppContextProvider = (props) => {
   const [allCourses, setAllCourses] = useState([]);
   const [isEducator, setIsEducator] = useState(false);
   const [enrollCourses, setEnrollCourses] = useState([]);
+  const [enrollCoursesArray, setEnrollCoursesArray] = useState([]);
   const [userData, setUserData] = useState(null);
 
   const navigate = useNavigate();
@@ -85,14 +84,12 @@ export const AppContextProvider = (props) => {
       const { data } = await axios.get(backUrl + "api/course/all");
       if (data.success) {
         setAllCourses(data.courses);
-      } else {
-        toast.error(data.message);
-        console.log(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error fetching courses:", error);
     }
   };
+
   //feach user data
   const fetchUserData = async () => {
     if (user.publicMetadata.role === "educator") {
@@ -106,14 +103,12 @@ export const AppContextProvider = (props) => {
       });
       if (data.success) {
         setUserData(data.user);
-      } else {
-        toast.error(data.message);
-        console.log(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error fetching user data:", error);
     }
   };
+
   // function to calculate rating
   const calculateRating = (course) => {
     if (!course.courseRatings || course.courseRatings.length === 0) {
@@ -170,24 +165,19 @@ export const AppContextProvider = (props) => {
       if (data.success) {
 
         setEnrollCourses(data.enrolledCourses.reverse());
-      } else {
-        toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error fetching enrolled courses:", error);
     }
   };
 
-  //make an array of user courses to be able to enroll in them
-  const enrollCoursesArray = enrollCourses.map((course) => course._id);
+  useEffect(() => {
+    setEnrollCoursesArray(enrollCourses.map((course) => course._id));
+  }, [enrollCourses]);
 
   useEffect(() => {
     fetchAllCourses();
   }, []);
-
-  const logToken = async () => {
-    console.log("Bearer " + (await getToken()));
-  };
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -195,8 +185,8 @@ export const AppContextProvider = (props) => {
         try {
           await fetchUserData();
           await feachUserEnrolledCourses();
-        } catch (error) {
-          console.error("Error loading user data:", error);
+        } catch {
+          console.error("Error loading user data");
         }
       };
       loadData();

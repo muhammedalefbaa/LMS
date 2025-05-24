@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react";
 import Loading from "../../components/student/Loading";
 import { AppContext } from "../../context/AppContext";
 import axios from "axios";
-import { toast } from "react-toastify";
 
 export default function StudentsEnrolled() {
   const [enrolledStudentsData, setEnrolledStudentsData] = useState(null);
@@ -15,21 +14,15 @@ export default function StudentsEnrolled() {
   const fetchEnrolledStudentsData = async () => {
     try {
       const token = await getToken();
-      const { data } = await axios.get(`${backUrl}api/educator/enrolled-students`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const { data } = await axios.get(backUrl + "api/educator/enrolled-students", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (data.success) {
         console.log('Received student data:', data.enrolledStudents);
         setEnrolledStudentsData(data.enrolledStudents);
-      } else {
-        toast.error(data.message || "Failed to fetch enrolled students");
-        setEnrolledStudentsData([]);
       }
     } catch (error) {
       console.error("Error fetching enrolled students:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch enrolled students");
-      setEnrolledStudentsData([]);
     }
   };
 

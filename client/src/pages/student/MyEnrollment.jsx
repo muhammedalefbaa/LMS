@@ -3,7 +3,6 @@ import { AppContext } from "../../context/AppContext";
 import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
 import axios from "axios";
-import { toast } from "react-toastify";
 
 export default function MyEnrollment() {
   const {
@@ -21,52 +20,38 @@ export default function MyEnrollment() {
   const getProgress = async () => {
     try {
       const token = await getToken();
-      if (!token) {
-        throw new Error("Authentication token not found");
-      }
-
-      const tempProgressArray = await Promise.all(
-        enrollCourses.map(async (course) => {
-          try {
-            const { data } = await axios.post(
-              `${backUrl}api/user/get-progress`,
-              {
-                courseId: course._id,
-              },
-              { 
-                headers: { Authorization: `Bearer ${token}` }
-              }
-            );
-
-            const totalLectures = calculateNoOfLectuers(course);
-            const lecturesCompleted = data.progressData
-              ? data.progressData.lectuerCompleted.length
-              : 0;
-
+      const { data } = await axios.get(
+        backUrl + "api/user/course-progress",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (data.success) {
+        const tempProgressArray = enrollCourses.map((course) => {
+          const progressData = data.progressData.find(
+            (item) => item.courseId === course._id
+          );
+          
+          if (progressData) {
             return {
-              lecturesCompleted,
-              totalLectures,
-              percentage: totalLectures > 0 ? (lecturesCompleted / totalLectures) * 100 : 0
-            };
-          } catch (courseError) {
-            console.error(`Error fetching progress for course ${course._id}:`, courseError);
-            return {
-              lecturesCompleted: 0,
+              percentage: Math.floor(
+                (progressData.lectuerCompleted.length /
+                  calculateNoOfLectuers(course)) *
+                  100
+              ),
+              lecturesCompleted: progressData.lectuerCompleted.length,
               totalLectures: calculateNoOfLectuers(course),
-              percentage: 0
             };
           }
-        })
-      );
-      setProgressArray(tempProgressArray);
+          return {
+            percentage: 0,
+            lecturesCompleted: 0,
+            totalLectures: calculateNoOfLectuers(course),
+          };
+        });
+        setProgressArray(tempProgressArray);
+      }
     } catch (error) {
-      console.error("Error fetching progress:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        config: error.config
-      });
-      toast.error(error.response?.data?.message || "Failed to load course progress");
+      console.error("Error fetching progress:", error);
     }
   };
 

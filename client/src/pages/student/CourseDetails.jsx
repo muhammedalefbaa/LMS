@@ -6,7 +6,6 @@ import assets from "../../assets/assets";
 import Footer from "../../components/student/Footer";
 import humanizeDuration from "humanize-duration";
 import YouTube from "react-youtube";
-import { toast } from "react-toastify";
 import axios from "axios";
 import { useUser } from "@clerk/clerk-react";
 
@@ -28,6 +27,7 @@ export default function CourseDetails() {
     userData,
     getToken,
     enrollCoursesArray,
+    feachUserEnrolledCourses,
   } = useContext(AppContext);
 
   const fetchCourseData = async () => {
@@ -35,67 +35,48 @@ export default function CourseDetails() {
       const { data } = await axios.get(backUrl + `api/course/${id}`);
       if (data.success) {
         setCourseData(data.courseData);
-      } else {
-        toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("Error fetching course data:", error);
     }
   };
 
   const enrollCourse = async () => {
-    if (!clerkUser) {
-      return toast.error("Please login first");
-    }
-
-    if (!courseData || !courseData._id) {
-      console.error("Course data is missing:", courseData);
-      return toast.error("Course information is not available");
+    if (!clerkUser || !courseData?._id || enrollCoursesArray.includes(courseData._id)) {
+      return;
     }
 
     try {
-      if (enrollCoursesArray.includes(id)) {
-        return toast.error("You are already enrolled in this course");
-      }
-
       const token = await getToken();
-      console.log("Sending purchase request for course:", courseData._id);
-      
       const { data } = await axios.post(
         backUrl + "api/user/purchase",
         { courseId: courseData._id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      if (data.success) {
-        console.log("Purchase successful. Response data:", data);
-        
-        if (data.url) {
-          console.log("Redirecting to payment gateway:", data.url);
-          window.location.href = data.url;
-        } else {
-          console.error("No payment URL in response");
-          toast.error("Payment gateway error. Please try again.");
-        }
-      } else {
-        console.error("Purchase failed:", data.message);
-        toast.error(data.message || "Purchase failed");
+      if (data.success && data.url) {
+        window.location.href = data.url;
       }
     } catch (error) {
-      console.error("Enrollment error:", error);
-      toast.error(error.response?.data?.message || "An error occurred during enrollment");
+      console.error("Error during enrollment:", error);
     }
   };
 
   useEffect(() => {
     fetchCourseData();
-  }, []);
+    if (clerkUser) {
+      feachUserEnrolledCourses();
+    }
+  }, [clerkUser]);
 
   useEffect(() => {
-    if (userData && courseData) {
-      setAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id));
+    if (courseData && (userData?.enrolledCourses || enrollCoursesArray)) {
+      const isEnrolled = 
+        (userData?.enrolledCourses?.includes(courseData._id) || 
+        enrollCoursesArray?.includes(courseData._id)) ?? false;
+      setAlreadyEnrolled(isEnrolled);
     }
-  }, [userData, courseData]);
+  }, [userData, courseData, enrollCoursesArray]);
 
   const toggleSection = (index) => {
     setOpenSetion((prev) => ({ ...prev, [index]: !prev[index] }));
@@ -248,83 +229,97 @@ export default function CourseDetails() {
             </div>
 
             {/* right column */}
-            <div className="md:sticky md:top-24 max-w-[434px] z-10 shadow-lg rounded-xl overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
-              {playerData ? (
-                <YouTube
-                  videoId={playerData.videoId}
-                  opts={{
-                    playerVars: {
-                      autoplay: 1,
-                    },
-                  }}
-                  iframeClassName="w-full aspect-video"
-                />
-              ) : (
-                <img src={courseData.courseThumbnail} alt="" />
-              )}
-              <div className="pt-5">
-                <div className="flex items-center gap-2">
-                  <img
-                    className="w-3.5"
-                    src={assets.time_clock_icon}
-                    alt="clock"
+            <div className="md:top-24 max-w-[434px] z-10 shadow-lg rounded-xl overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                {playerData ? (
+                  <YouTube
+                    videoId={playerData.videoId}
+                    opts={{
+                      playerVars: {
+                        autoplay: 1,
+                      },
+                    }}
+                    iframeClassName="w-full aspect-video"
                   />
+                ) : (
+                  <img src={courseData.courseThumbnail} alt="" />
+                )}
+                <div className="pt-5">
+                  <div className="flex items-center gap-2">
+                    <img
+                      className="w-3.5"
+                      src={assets.time_clock_icon}
+                      alt="clock"
+                    />
 
-                  <p className="text-red-500">
-                    <span className="font-medium">5 days </span>left at this
-                    price !
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 pt-2">
-                  <p className="text-gray-800 md:text-4xl text-2xl font-semibold">
-                    {currency}
-                    {(
-                      courseData.coursePrice -
-                      (courseData.discount / 100) * courseData.coursePrice
-                    ).toFixed(2)}
-                  </p>
-                  <p className="md:text-lg text-gray-500 line-through">
-                    {currency}
-                    {courseData.coursePrice}
-                  </p>
-                  <p className="md:text-lg text-gray-500">
-                    {courseData.discount}% off
-                  </p>
-                </div>
-                <div className="flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <img src={assets.star} alt="star" />
-                    <p>{calculateRating(courseData)}</p>
+                    <p className="text-red-500">
+                      <span className="font-medium">5 days </span>left at this
+                      price !
+                    </p>
                   </div>
-                  <div className="h-4 w-px bg-gray-500/40"></div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <p className="text-gray-800 md:text-4xl text-2xl font-semibold">
+                      {currency}
+                      {(
+                        courseData.coursePrice -
+                        (courseData.discount / 100) * courseData.coursePrice
+                      ).toFixed(2)}
+                    </p>
+                    <p className="md:text-lg text-gray-500 line-through">
+                      {currency}
+                      {courseData.coursePrice}
+                    </p>
+                    <p className="md:text-lg text-gray-500">
+                      {courseData.discount}% off
+                    </p>
+                  </div>
+                  <div className="flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <img src={assets.star} alt="star" />
+                      <p>{calculateRating(courseData)}</p>
+                    </div>
+                    <div className="h-4 w-px bg-gray-500/40"></div>
 
-                  <div className="flex items-center gap-1">
-                    <img src={assets.time_clock_icon} alt="time" />
-                    <p>{calculateCourseDuration(courseData)}</p>
+                    <div className="flex items-center gap-1">
+                      <img src={assets.time_clock_icon} alt="time" />
+                      <p>{calculateCourseDuration(courseData)}</p>
+                    </div>
+                    <div className="h-4 w-px bg-gray-500/40"></div>
+                    <div className="flex items-center gap-1">
+                      <img src={assets.lesson_icon} alt="time" />
+                      <p>{calculateNoOfLectuers(courseData)} lessons</p>
+                    </div>
                   </div>
-                  <div className="h-4 w-px bg-gray-500/40"></div>
-                  <div className="flex items-center gap-1">
-                    <img src={assets.lesson_icon} alt="time" />
-                    <p>{calculateNoOfLectuers(courseData)} lessons</p>
+                  <button
+                    className={`md:mt-6 mt-4 w-full py-3 rounded text-white font-medium ${
+                      !clerkUser 
+                        ? 'bg-blue-400 cursor-not-allowed opacity-75' 
+                        : isAlreadyEnrolled
+                          ? 'bg-green-600 cursor-not-allowed'
+                          : 'bg-blue-600 cursor-pointer hover:bg-blue-700'
+                    }`}
+                    onClick={enrollCourse}
+                    disabled={!clerkUser || isAlreadyEnrolled}
+                  >
+                    {!clerkUser 
+                      ? "Please Login" 
+                      : isAlreadyEnrolled 
+                        ? "Already Enrolled" 
+                        : "Enroll Now"
+                    }
+                  </button>
+                  <div className="pt-6">
+                    <p className="md:text-xl text-lg font-medium text-gray-800">
+                      What's in the course?
+                    </p>
+                    <ul className="ml-4 pt-2 text-sm md:text-base text-gray-600 list-disc">
+                      <li>Lifetime access with free updates.</li>
+                      <li>Step-by-step, hands-on project guidance.</li>
+                      <li>Downloadable resources and source code.</li>
+                      <li>Quizzes to test your knowledge.</li>
+                      <li>Certificate of completion.</li>
+                    </ul>
                   </div>
-                </div>
-                <button
-                  className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium cursor-pointer"
-                  onClick={enrollCourse}
-                >
-                  {isAlreadyEnrolled ? "Enrolled" : "Enroll Now"}
-                </button>
-                <div className="pt-6">
-                  <p className="md:text-xl text-lg font-medium text-gray-800">
-                    What's in the course?
-                  </p>
-                  <ul className="ml-4 pt-2 text-sm md:text-base text-gray-600 list-disc">
-                    <li>Lifetime access with free updates.</li>
-                    <li>Step-by-step, hands-on project guidance.</li>
-                    <li>Downloadable resources and source code.</li>
-                    <li>Quizzes to test your knowledge.</li>
-                    <li>Certificate of completion.</li>
-                  </ul>
                 </div>
               </div>
             </div>
