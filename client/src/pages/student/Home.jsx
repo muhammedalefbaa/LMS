@@ -8,13 +8,15 @@ import Footer from "../../components/student/Footer";
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center space-y-7 text-center">
+    <div className="min-h-screen bg-white">
       <Hero />
-      <Companies />
-      <CourseSection />
-      <TestimonialSection />
-      <CallToAction />
-      <Footer/>
+      <div className="space-y-16 sm:space-y-20 md:space-y-24">
+        <Companies />
+        <CourseSection />
+        <TestimonialSection />
+        <CallToAction />
+      </div>
+      <Footer />
     </div>
   );
 }

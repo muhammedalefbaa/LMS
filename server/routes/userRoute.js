@@ -14,8 +14,8 @@ userRoute.get("/data", getUserData);
 userRoute.get("/enrolled-courses", userEnrolledCourses);
 userRoute.post("/purchase", purchaseCourse);
 
-userRoute.post("update-course-progress", updateUserCourseProgress);
-userRoute.post("get-course-progress", getUserCourseProgress);
+userRoute.post("/update-course-progress", updateUserCourseProgress);
+userRoute.post("/get-progress", getUserCourseProgress);
 userRoute.post("/add-rating", addUserRating);
 
 export default userRoute;

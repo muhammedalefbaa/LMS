@@ -1,8 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useContext } from "react";
 import uniqid from "uniqid";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import assets from "../../assets/assets";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { AppContext } from "../../context/AppContext";
 
 const initialLectureDetails = {
   lectureTitle: "",
@@ -24,6 +28,8 @@ export default function AddCourse() {
   const [showPopup, setShowPopup] = useState(false);
   const [currentChapterId, setCurrentChapterId] = useState(null);
   const [lectureDetails, setLectureDetails] = useState(initialLectureDetails);
+  const navigate = useNavigate();
+  const { addNewCourse } = useContext(AppContext);
 
   // Initialize Quill editor
   useEffect(() => {
@@ -130,19 +136,65 @@ export default function AddCourse() {
     async e => {
       e.preventDefault();
       try {
+        if (!formData.image) {
+          toast.error("Please upload a course thumbnail");
+          console.log("Error toast triggered: Missing thumbnail");
+          return;
+        }
+
         const description = quillRef.current?.root.innerHTML;
         const courseData = {
-          ...formData,
-          description,
+          courseTitle: formData.courseTitle,
+          coursePrice: formData.coursePrice,
+          discount: formData.discount,
+          courseDescription: description,
           chapters,
         };
-        console.log("Submitting course:", courseData);
-        // Add your submission logic here
+        
+        console.log("Submitting course data:", courseData);
+        const response = await addNewCourse(courseData, formData.image);
+        console.log("Server response:", response);
+        
+        if (response.success) {
+          toast.success("Course added successfully");
+          console.log("Success toast triggered with:", "Course added successfully");
+          setTimeout(() => {
+            console.log("Navigating to my-courses after delay");
+            navigate("/educator/my-courses");
+          }, 2000);
+        } else {
+          const errorMsg = response.message || "Failed to add course";
+          toast.error(errorMsg);
+          console.log("Error toast triggered with:", errorMsg);
+          
+          // If it's an authentication error, redirect to login
+          if (errorMsg.toLowerCase().includes('authentication') || 
+              errorMsg.toLowerCase().includes('token') ||
+              errorMsg.toLowerCase().includes('unauthorized')) {
+            console.log("Authentication error detected, redirecting to login");
+            setTimeout(() => {
+              navigate("/");
+            }, 2000);
+          }
+        }
       } catch (error) {
-        console.error("Error submitting course:", error);
+        console.error("Full error object:", error);
+        const errorMsg = error.message || "Failed to add course";
+        toast.error(errorMsg);
+        console.log("Error toast triggered with:", errorMsg);
+        
+        // If it's an authentication error, redirect to login
+        if (errorMsg.toLowerCase().includes('authentication') || 
+            errorMsg.toLowerCase().includes('token') ||
+            errorMsg.toLowerCase().includes('unauthorized')) {
+          console.log("Authentication error detected, redirecting to login");
+          setTimeout(() => {
+            navigate("/");
+          }, 2000);
+        }
       }
     },
-    [formData, chapters]
+    [formData, chapters, navigate, addNewCourse]
   );
 
   return (

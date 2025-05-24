@@ -1,17 +1,33 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
 import Loading from "../../components/student/Loading";
+import { toast } from "react-toastify";
 
 export default function MyCourses() {
-  const { currency, allCourses } = useContext(AppContext);
+  const { currency, getEducatorCourses } = useContext(AppContext);
   const [courses, setCourses] = useState(null);
 
   const fetchEducatorCourses = async () => {
-    if (Array.isArray(allCourses)) {
-      setCourses(allCourses);
-    } else {
+    try {
+      const response = await getEducatorCourses();
+      if (response.success) {
+        setCourses(response.courses);
+      } else {
+        toast.error(response.message || "Failed to fetch courses");
+        setCourses([]);
+      }
+    } catch (error) {
+      console.error("Error fetching educator courses:", error);
+      toast.error(error.message || "Failed to fetch courses");
       setCourses([]);
     }
+  };
+
+  const calculateEarnings = (course) => {
+    if (!course.enrolledStudents || !course.coursePrice) return 0;
+    
+    const priceAfterDiscount = course.coursePrice - (course.discount * course.coursePrice / 100);
+    return Math.floor(course.enrolledStudents.length * priceAfterDiscount);
   };
 
   useEffect(() => {
@@ -40,11 +56,8 @@ export default function MyCourses() {
             </thead>
             <tbody className="text-sm text-gray-500">
               {courses.map((course) => {
-                const earnings = Math.floor(
-                  course.enrolledStudents.length *
-                    (course.coursePrice -
-                      (course.discount * course.coursePrice) / 100)
-                );
+                const earnings = calculateEarnings(course);
+                
                 return (
                   <tr
                     key={course._id || course.courseTitle}
@@ -64,10 +77,10 @@ export default function MyCourses() {
                       {currency} {earnings}
                     </td>
                     <td className="px-4 py-3 truncate">
-                      {course.enrolledStudents.length}
+                      {course.enrolledStudents ? course.enrolledStudents.length : 0}
                     </td>
                     <td className="px-4 py-3 truncate">
-                      {new Date(course.createdAt).toDateString()}
+                      {course.createdAt ? new Date(course.createdAt).toDateString() : 'N/A'}
                     </td>
                   </tr>
                 );

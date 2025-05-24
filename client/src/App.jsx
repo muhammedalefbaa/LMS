@@ -13,32 +13,45 @@ import StudentsEnrolled from "./pages/educator/StudentsEnrolled";
 import Navbar from "./components/student/Navbar";
 import CourseDetails from "./pages/student/CourseDetails";
 import "quill/dist/quill.snow.css"
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function App() {
-
     const isEducatorRoute = useMatch("/educator/*");
 
+    return (
+        <div className="min-h-screen bg-white flex flex-col">
+            <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+            />
+            {!isEducatorRoute && <Navbar />}
+            <main className="flex-grow">
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/course-list" element={<CourseList />} />
+                    <Route path="/course-list/:input" element={<CourseList />} />
+                    <Route path="/my-enrollment" element={<MyEnrollment />} />
+                    <Route path="/course/:id" element={<CourseDetails />} />
+                    <Route path="/player/:courseId" element={<Player />} />
+                    <Route path="/loading/:path" element={<Loading />} />
 
-  return (
-    <div className="text-default min-h-screen bg-white">
-      {!isEducatorRoute && <Navbar />}
-      
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/course-list" element={<CourseList />} />
-        <Route path="/course-list/:input" element={<CourseList />} />
-        <Route path="/my-enrollment" element={<MyEnrollment />} />
-        <Route path="/course/:id" element={<CourseDetails />} />
-        <Route path="/player/:courseId" element={<Player />} />
-        <Route path="/loading/:path" element={<Loading />} />
-
-        <Route path="/educator" element={<Educator />}>
-          <Route path="/educator" element={<Dashboard />} />
-          <Route path="add-course" element={<AddCourse />} />
-          <Route path="my-courses" element={<MyCourses />} />
-          <Route path="students-enrolled" element={<StudentsEnrolled />} />
-        </Route>
-      </Routes>
-    </div>
-  );
+                    <Route path="/educator" element={<Educator />}>
+                        <Route path="/educator" element={<Dashboard />} />
+                        <Route path="add-course" element={<AddCourse />} />
+                        <Route path="my-courses" element={<MyCourses />} />
+                        <Route path="students-enrolled" element={<StudentsEnrolled />} />
+                    </Route>
+                </Routes>
+            </main>
+        </div>
+    );
 }

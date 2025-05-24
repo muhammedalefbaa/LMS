@@ -1,22 +1,56 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AppContext } from "../../context/AppContext";
-import assets, { dummyDashboardData } from "../../assets/assets";
+import assets from "../../assets/assets";
 import Loading from "../../components/student/Loading";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 export default function Dashboard() {
-  const { currency } = useContext(AppContext);
+  const { currency, backUrl, getToken } = useContext(AppContext);
   const [dashboardData, setDashboardData] = useState(null);
 
   const fetchDashboardData = async () => {
-    // In real usage, this could be an API call
-    setDashboardData(dummyDashboardData);
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(`${backUrl}api/educator/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (data.success) {
+        setDashboardData(data.dashboardData);
+      } else {
+        toast.error(data.message || "Failed to fetch dashboard data");
+        setDashboardData({
+          enrolledStudentsData: [],
+          totalCourses: 0,
+          totalEarnings: 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch dashboard data");
+      setDashboardData({
+        enrolledStudentsData: [],
+        totalCourses: 0,
+        totalEarnings: 0
+      });
+    }
   };
 
   useEffect(() => {
     fetchDashboardData();
+    // Set up auto-refresh every 5 minutes
+    const refreshInterval = setInterval(fetchDashboardData, 5 * 60 * 1000);
+    return () => clearInterval(refreshInterval);
   }, []);
 
-  if (!dashboardData) return <Loading />;
+  if (!dashboardData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading />
+      </div>
+    );
+  }
 
   const { enrolledStudentsData = [], totalCourses = 0, totalEarnings = 0 } = dashboardData;
 
@@ -58,23 +92,34 @@ export default function Dashboard() {
                   <th className="px-4 py-3 font-semibold text-center hidden sm:table-cell">#</th>
                   <th className="px-4 py-3 font-semibold">Student Name</th>
                   <th className="px-4 py-3 font-semibold">Course Title</th>
+                  <th className="px-4 py-3 font-semibold hidden md:table-cell">Enrolled Date</th>
                 </tr>
               </thead>
               <tbody className="text-sm text-gray-500">
-                {enrolledStudentsData.map((student, index) => (
-                  <tr key={`${student.student.id || index}`} className="border-b border-gray-500/20">
+                {enrolledStudentsData.map((enrollment, index) => (
+                  <tr key={`${enrollment.student._id || index}`} className="border-b border-gray-500/20">
                     <td className="px-4 py-3 text-center hidden sm:table-cell">{index + 1}</td>
                     <td className="md:px-4 px-2 py-3 flex items-center space-x-3">
                       <img
-                        src={student.student.imageUrl}
+                        src={enrollment.student.imageUrl}
                         alt="profile"
                         className="w-8 h-8 rounded-full"
                       />
-                      <span className="truncate">{student.student.name}</span>
+                      <span className="truncate">{enrollment.student.name}</span>
                     </td>
-                    <td className="px-4 py-3">{student.courseTitle}</td>
+                    <td className="px-4 py-3">{enrollment.courseTitle}</td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {new Date(enrollment.enrollmentDate).toLocaleDateString()}
+                    </td>
                   </tr>
                 ))}
+                {enrolledStudentsData.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-3 text-center text-gray-500">
+                      No enrollments yet
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

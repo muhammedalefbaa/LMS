@@ -3,7 +3,7 @@ import {
   updateRoleToEducatoer,
   addCourse,
   getEducatorCourses,
-  educationDashboardData,
+  getDashboardData,
   getEnrolledStudentsData,
 } from "../controllers/educatorController.js";
 import upload from "../configs/multer.js";
@@ -12,7 +12,7 @@ import protectEducator from "../middlewares/authMiddleware.js";
 const educatorRoute = express.Router();
 
 //add educator role
-educatorRoute.get("/update-role", updateRoleToEducatoer);
+educatorRoute.post("/update-role", updateRoleToEducatoer);
 
 educatorRoute.post(
   "/add-course",
@@ -22,7 +22,7 @@ educatorRoute.post(
 );
 
 educatorRoute.get("/courses", protectEducator, getEducatorCourses);
-educatorRoute.get("/dahsbard", protectEducator, educationDashboardData);
+educatorRoute.get("/dashboard", protectEducator, getDashboardData);
 educatorRoute.get(
   "/enrolled-students",
   protectEducator,

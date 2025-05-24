@@ -6,20 +6,69 @@ import humanizeDuration from "humanize-duration";
 import YouTube from "react-youtube";
 import Footer from "../../components/student/Footer";
 import Rating from "../../components/student/Rating";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 export default function Player() {
-  const { enrollCourses, calculateCapterTime } = useContext(AppContext);
+  const { enrollCourses, calculateCapterTime, backUrl, getToken } = useContext(AppContext);
   const { courseId } = useParams();
   const [courseData, setCourseData] = useState(null);
   const [openSection, setOpenSection] = useState({});
   const [playerData, setPlayerData] = useState(null);
+  const [completedLectures, setCompletedLectures] = useState([]);
 
   const getCourseData = () => {
     if (!enrollCourses) return;
-
     const foundCourse = enrollCourses.find((course) => course._id === courseId);
     if (foundCourse) {
       setCourseData(foundCourse);
+    }
+  };
+
+  const getProgress = async () => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backUrl}api/user/get-progress`,
+        { courseId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success && data.progressData) {
+        setCompletedLectures(data.progressData.lectuerCompleted || []);
+      }
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+    }
+  };
+
+  const markAsComplete = async () => {
+    if (!playerData) return;
+    
+    try {
+      const token = await getToken();
+      const { data } = await axios.post(
+        `${backUrl}api/user/update-course-progress`,
+        {
+          courseId,
+          lectuerId: playerData.lectureId
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (data.success) {
+        setCompletedLectures(prev => {
+          if (!prev.includes(playerData.lectureId)) {
+            return [...prev, playerData.lectureId];
+          }
+          return prev;
+        });
+        toast.success("Lecture marked as completed!");
+      } else {
+        toast.error(data.message || "Failed to mark lecture as complete");
+      }
+    } catch (error) {
+      console.error("Error marking lecture as complete:", error);
+      toast.error("Failed to mark lecture as complete");
     }
   };
 
@@ -31,6 +80,12 @@ export default function Player() {
     getCourseData();
   }, [enrollCourses]);
 
+  useEffect(() => {
+    if (courseId) {
+      getProgress();
+    }
+  }, [courseId]);
+
   return (
     <div>
       <div className="p-4 sm:p-10 sm:flex sm:flex-col-reverse md:grid md:grid-cols-2 gap-10 md:px-36">
@@ -39,7 +94,7 @@ export default function Player() {
           {playerData ? (
             <div>
               <YouTube
-                key={playerData.lectureUrl} // this forces re-render
+                key={playerData.lectureUrl}
                 videoId={playerData.lectureUrl.split("/").pop()}
                 iframeClassName="w-full aspect-video"
               />
@@ -48,8 +103,17 @@ export default function Player() {
                   {playerData.chapter}.{playerData.lecture}{" "}
                   {playerData.lectureTitle}
                 </p>
-                <button className="text-blue-600 cursor-pointer">
-                  {false ? "complete" : "Mark As Complete"}
+                <button 
+                  onClick={markAsComplete}
+                  className={`text-white px-3 py-1 rounded ${
+                    completedLectures.includes(playerData.lectureId)
+                      ? "bg-green-500"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {completedLectures.includes(playerData.lectureId)
+                    ? "Completed"
+                    : "Mark as Complete"}
                 </button>
               </div>
             </div>
@@ -100,12 +164,12 @@ export default function Player() {
                         <li key={i} className="flex items-start gap-2 py-1">
                           <img
                             src={
-                              false ? assets.blue_tick_icon : assets.play_icon
+                              completedLectures.includes(lecture.lectureId)
+                                ? assets.blue_tick_icon
+                                : assets.play_icon
                             }
                             alt="play"
-                            className={`w-5 h-5 transform transition-transform duration-300 ${
-                              openSection[index] ? "rotate-180" : ""
-                            }`}
+                            className="w-5 h-5"
                           />
                           <div className="flex items-center justify-between w-full text-gray-800 text-xs md:text-default">
                             <p>{lecture.lectureTitle}</p>

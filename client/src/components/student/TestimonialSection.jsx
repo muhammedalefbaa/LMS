@@ -4,13 +4,14 @@ import assets, { dummyTestimonial } from "../../assets/assets";
 export default function TestimonialSection() {
   return (
     <div className="py-5 md:px-40 px-8">
-      <h2 className="text-3xl font-medium text-gray-800">TestimonialSection</h2>
-      <p className="md:text-base text-gray-500 mt-3">
-        Hear from our learners as they share their journeys of transformation,
-        success,
-        <br /> and how our platform has made a difference in their lives.
-      </p>
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1  gap-5 mt-10 px-20 md:px-0">
+      <div className="text-center max-w-4xl mx-auto">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">What Our Students Say</h2>
+        <p className="text-base text-gray-600 mt-4 max-w-2xl mx-auto">
+          Hear from our learners as they share their journeys of transformation,
+          success, and how our platform has made a difference in their lives.
+        </p>
+      </div>
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-5 mt-10 px-20 md:px-0">
         {dummyTestimonial.map((testimonial, index) => (
           <div
             key={index}
@@ -46,7 +47,9 @@ export default function TestimonialSection() {
               </div>
               <p className="text-gray-500 mt-5">{testimonial.feedback}</p>
             </div>
-            <a href="#" className="text-blue-500 underline px-5"> Read more</a>
+            <a href="#" className="text-blue-500 hover:text-blue-600 underline px-5 transition-colors"> 
+              Read more
+            </a>
           </div>
         ))}
       </div>
