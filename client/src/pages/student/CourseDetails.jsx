@@ -27,7 +27,7 @@ export default function CourseDetails() {
     userData,
     getToken,
     enrollCoursesArray,
-    feachUserEnrolledCourses,
+    fetchUserEnrolledCourses,
   } = useContext(AppContext);
 
   const fetchCourseData = async () => {
@@ -65,7 +65,7 @@ export default function CourseDetails() {
   useEffect(() => {
     fetchCourseData();
     if (clerkUser) {
-      feachUserEnrolledCourses();
+      fetchUserEnrolledCourses();
     }
   }, [clerkUser]);
 

@@ -3,19 +3,22 @@ import { AppContext } from "../../context/AppContext";
 import { Line } from "rc-progress";
 import Footer from "../../components/student/Footer";
 import axios from "axios";
+import Loading from "../../components/student/Loading";
 
 export default function MyEnrollment() {
   const {
-    enrollCourses, // هذا هو الاسم الصحيح للمتغير في السياق
+    enrollCourses,
     calculateCourseDuration,
     navigate,
     userData,
-    feachUserEnrolledCourses,
+    fetchUserEnrolledCourses,
     backUrl,
     getToken,
     calculateNoOfLectuers,
   } = useContext(AppContext);
   const [progressArray, setProgressArray] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const getProgress = async () => {
     try {
@@ -26,6 +29,7 @@ export default function MyEnrollment() {
       );
       
       if (data.success) {
+        console.log("📦 Course progress data:", data);
         const tempProgressArray = enrollCourses.map((course) => {
           const progressData = data.progressData.find(
             (item) => item.courseId === course._id
@@ -51,21 +55,67 @@ export default function MyEnrollment() {
         setProgressArray(tempProgressArray);
       }
     } catch (error) {
-      console.error("Error fetching progress:", error);
+      console.error("❌ Error fetching progress:", error);
+      setError("Failed to load course progress");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (userData) {
-      feachUserEnrolledCourses();
-    }
+    const loadEnrollments = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        if (userData) {
+          console.log("🔄 Fetching enrolled courses...");
+          await fetchUserEnrolledCourses();
+        }
+      } catch (error) {
+        console.error("❌ Error loading enrollments:", error);
+        setError("Failed to load enrolled courses");
+      }
+    };
+    loadEnrollments();
   }, [userData]);
 
   useEffect(() => {
     if (enrollCourses.length > 0) {
       getProgress();
+    } else {
+      setIsLoading(false);
     }
-  }, [enrollCourses]); 
+  }, [enrollCourses]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600">
+        {error}
+      </div>
+    );
+  }
+
+  if (!enrollCourses.length) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-xl text-gray-600 mb-4">You haven't enrolled in any courses yet</p>
+        <button
+          onClick={() => navigate('/course-list')}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        >
+          Browse Courses
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>

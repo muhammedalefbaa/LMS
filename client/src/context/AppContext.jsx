@@ -154,44 +154,66 @@ export const AppContextProvider = (props) => {
     return totalLectuers;
   };
 
-  // feach user enroll courses
-  const feachUserEnrolledCourses = async () => {
+  // Rename feachUserEnrolledCourses to fetchUserEnrolledCourses for correct spelling
+  const fetchUserEnrolledCourses = async () => {
     try {
       const token = await getToken();
-
       const { data } = await axios.get(backUrl + "api/user/enrolled-courses", {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
       if (data.success) {
-
-        setEnrollCourses(data.enrolledCourses.reverse());
+        console.log("📦 Fetched enrolled courses:", data.enrolledCourses);
+        setEnrollCourses(data.enrolledCourses);
+        setEnrollCoursesArray(data.enrolledCourses.map(course => course._id));
+      } else {
+        console.log("❌ Failed to fetch enrolled courses:", data.message);
+        setEnrollCourses([]);
+        setEnrollCoursesArray([]);
       }
     } catch (error) {
-      console.error("Error fetching enrolled courses:", error);
+      console.error("❌ Error fetching enrolled courses:", error);
+      setEnrollCourses([]);
+      setEnrollCoursesArray([]);
     }
   };
 
-  useEffect(() => {
-    setEnrollCoursesArray(enrollCourses.map((course) => course._id));
-  }, [enrollCourses]);
-
-  useEffect(() => {
-    fetchAllCourses();
-  }, []);
-
+  // Update the useEffect to handle loading state
   useEffect(() => {
     if (isLoaded && user) {
       const loadData = async () => {
         try {
+          console.log("🔄 Loading user data...");
           await fetchUserData();
-          await feachUserEnrolledCourses();
-        } catch {
-          console.error("Error loading user data");
+          console.log("🔄 Loading enrolled courses...");
+          await fetchUserEnrolledCourses();
+          console.log("✅ Data loading complete");
+        } catch (error) {
+          console.error("❌ Error loading user data:", error);
         }
       };
       loadData();
+    } else {
+      // Clear data when user is not loaded or logged out
+      setUserData(null);
+      setEnrollCourses([]);
+      setEnrollCoursesArray([]);
     }
   }, [isLoaded, user]);
+
+  // Add new useEffect to fetch all courses
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        console.log("🔄 Loading all courses...");
+        await fetchAllCourses();
+        console.log("✅ All courses loaded");
+      } catch (error) {
+        console.error("❌ Error loading courses:", error);
+      }
+    };
+    loadCourses();
+  }, []); // Run once when component mounts
 
   const value = {
     currency,
@@ -204,7 +226,7 @@ export const AppContextProvider = (props) => {
     calculateNoOfLectuers,
     calculateCapterTime,
     enrollCourses,
-    feachUserEnrolledCourses,
+    fetchUserEnrolledCourses,
     backUrl,
     userData,
     setUserData,

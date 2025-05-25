@@ -23,26 +23,63 @@ export const getUserData = async (req, res) => {
 // Get enrolled courses
 export const userEnrolledCourses = async (req, res) => {
   try {
+    console.log("\n=== FETCHING ENROLLED COURSES ===");
     const userId = req.auth.userId;
+    console.log("🔍 Fetching enrolled courses for user:", userId);
+
     const userData = await User.findById(userId).populate("enrolledCourses");
-    res.json({ success: true, enrolledCourses: userData.enrolledCourses });
+    
+    if (!userData) {
+      console.error("❌ User not found:", userId);
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    console.log("📦 User data found:", {
+      _id: userData._id,
+      name: userData.name,
+      enrolledCoursesCount: userData.enrolledCourses?.length || 0
+    });
+
+    if (userData.enrolledCourses?.length > 0) {
+      console.log("📚 Enrolled courses:", userData.enrolledCourses.map(course => ({
+        _id: course._id,
+        title: course.courseTitle
+      })));
+    } else {
+      console.log("ℹ️ No enrolled courses found for user");
+    }
+
+    console.log("=== FETCH COMPLETE ===\n");
+    res.json({ success: true, enrolledCourses: userData.enrolledCourses || [] });
   } catch (error) {
+    console.error("❌ Error fetching enrolled courses:", error);
+    console.error(error.stack);
     res.json({ success: false, message: error.message });
   }
 };
 
 // Purchase course and generate product key
 export const purchaseCourse = async (req, res) => {
+  console.log("\n=== STARTING PURCHASE PROCESS ===");
   try {
     const { courseId } = req.body;
     const { origin } = req.headers;
     const userId = req.auth.userId;
+    
+    console.log("📦 Purchase Details:", {
+      courseId,
+      userId,
+      origin
+    });
 
     const userData = await User.findById(userId);
     const courseData = await Course.findById(courseId);
-    // console.log(courseData);
+    
+    console.log("🔍 Found User:", !!userData);
+    console.log("🔍 Found Course:", !!courseData);
 
     if (!userData || !courseData) {
+      console.error("❌ User or course not found");
       return res.json({ success: false, message: "User or course not found" });
     }
 
@@ -57,13 +94,22 @@ export const purchaseCourse = async (req, res) => {
       courseId: courseData._id,
       userId,
       amount,
+      status: "pending" // explicitly set status
     };
 
+    console.log("💰 Creating purchase with data:", purchaseData);
     const newPurchase = await Purchase.create(purchaseData);
+    console.log("✅ Purchase created:", {
+      purchaseId: newPurchase._id,
+      status: newPurchase.status
+    });
 
     // Stripe gateway init
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is not configured");
+    }
     const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const currency = process.env.CURRENCY.toLowerCase();
+    const currency = process.env.CURRENCY?.toLowerCase() || 'usd';
 
     // Creating line items for Stripe
     const line_items = [
@@ -79,6 +125,10 @@ export const purchaseCourse = async (req, res) => {
       },
     ];
 
+    console.log("💳 Creating Stripe session with metadata:", {
+      purchaseId: newPurchase._id.toString()
+    });
+
     const session = await stripeInstance.checkout.sessions.create({
       success_url: `${origin}/loading/my-enrollment`,
       cancel_url: `${origin}/`,
@@ -89,8 +139,16 @@ export const purchaseCourse = async (req, res) => {
       },
     });
 
+    console.log("✅ Stripe session created:", {
+      sessionId: session.id,
+      url: session.url
+    });
+    console.log("=== PURCHASE PROCESS COMPLETE ===\n");
+
     res.json({ success: true, url: session.url });
   } catch (error) {
+    console.error("❌ Error in purchase process:", error.message);
+    console.error(error.stack);
     res.json({ success: false, message: error.message });
   }
 };

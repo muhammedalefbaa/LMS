@@ -5,11 +5,13 @@ import { useParams } from "react-router-dom";
 import CourseCard from "../../components/student/CourseCard";
 import assets from "../../assets/assets";
 import Footer from "../../components/student/Footer";
+import Loading from "../../components/student/Loading";
 
 export default function CoursesList() {
   const { navigate, allCourses } = useContext(AppContext);
   const { input } = useParams();
   const [filteredCourses, setFilteredCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (allCourses?.length > 0) {
@@ -20,7 +22,16 @@ export default function CoursesList() {
         : allCourses;
       setFilteredCourses(filtered);
     }
+    setIsLoading(false);
   }, [allCourses, input]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -57,9 +68,19 @@ export default function CoursesList() {
 
         {/* Course Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 my-16">
-          {filteredCourses.map((course, index) => (
-            <CourseCard key={index} course={course} />
-          ))}
+          {filteredCourses.length > 0 ? (
+            filteredCourses.map((course, index) => (
+              <CourseCard key={course._id || index} course={course} />
+            ))
+          ) : (
+            <div className="col-span-full text-center text-gray-500 py-8">
+              {input ? (
+                <p>No courses found matching "{input}"</p>
+              ) : (
+                <p>No courses available at the moment</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

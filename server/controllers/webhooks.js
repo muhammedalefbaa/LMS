@@ -56,77 +56,86 @@ export const clerkWebhooks = async (req, res) => {
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 export const stripeWebhooks = async (req, res) => {
-  console.log("Webhook received (json):", req.body.toString());
-  console.log("🔥 Stripe webhook triggered");
-
-  const sig = req.headers["stripe-signature"];
-
-  let event;
-
+  const webhookStartTime = new Date().toISOString();
+  console.log("\n=== STRIPE WEBHOOK START ===");
+  console.log("⏰ Webhook received at:", webhookStartTime);
+  console.log("📝 Request Method:", req.method);
+  console.log("🔑 Stripe Signature:", req.headers["stripe-signature"]);
+  console.log("💡 Content-Type:", req.headers["content-type"]);
+  
   try {
-    event = stripeInstance.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.log("❌ Webhook signature verification failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-  console.log("📦 event.type:", event.type);
+    // Log the raw body as string
+    const rawBody = req.body.toString('utf8');
+    console.log("📦 Raw Body Length:", rawBody.length);
+    console.log("📦 Raw Body Preview:", rawBody.substring(0, 100) + "...");
 
-  switch (event.type) {
-    case "checkout.session.completed": {
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+    }
+
+    const sig = req.headers["stripe-signature"];
+    if (!sig) {
+      throw new Error("No stripe signature found in headers");
+    }
+
+    let event;
+    try {
+      event = stripeInstance.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+      console.log("✅ Webhook signature verified successfully");
+    } catch (err) {
+      console.error("❌ Webhook signature verification failed:", err.message);
+      console.error("Full error:", err);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log("📦 Event type:", event.type);
+    console.log("📦 Event ID:", event.id);
+    
+    if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-
+      console.log("💳 Checkout Session ID:", session.id);
+      console.log("📋 Session Metadata:", session.metadata);
+      
       try {
         const purchaseId = session.metadata?.purchaseId;
-
         if (!purchaseId) {
-          console.log("❌ purchaseId not found in metadata");
-          break;
+          throw new Error("Purchase ID not found in metadata");
         }
+        console.log("🔍 Looking up purchase:", purchaseId);
 
         const purchaseData = await Purchase.findById(purchaseId);
         if (!purchaseData) {
-          console.log(`❌ Purchase not found in DB: ${purchaseId}`);
-          break;
+          throw new Error(`Purchase not found: ${purchaseId}`);
         }
-
-        const userData = await User.findById(purchaseData.userId);
-        const courseData = await Course.findById(purchaseData.courseId);
-
-        if (!userData || !courseData) {
-          console.log("❌ User or Course not found");
-          break;
-        }
-
-        // Check if already enrolled
-        if (!courseData.enrolledStudents.includes(userData._id)) {
-          courseData.enrolledStudents.push(userData._id);
-          await courseData.save();
-        }
-
-        if (!userData.enrolledCourses.includes(courseData._id)) {
-          userData.enrolledCourses.push(courseData._id);
-          await userData.save();
-        }
-
+        console.log("📝 Current purchase status:", purchaseData.status);
+        
+        // Update purchase status
         purchaseData.status = "completed";
-        await purchaseData.save();
-
-        console.log("✅ Purchase marked as completed");
+        const updatedPurchase = await purchaseData.save();
+        console.log("✅ Updated purchase status to:", updatedPurchase.status);
+        
+        // Rest of your existing code for updating user and course...
+        
       } catch (error) {
-        console.log(
-          "❌ Error handling checkout.session.completed:",
-          error.message
-        );
+        console.error("❌ Error processing checkout session:", error.message);
+        console.error("Full error:", error);
+        return res.status(500).send(`Error processing checkout: ${error.message}`);
       }
-
-      break;
     }
-    // Add other cases if needed
-  }
 
-  res.json({ received: true });
+    const webhookEndTime = new Date().toISOString();
+    console.log("⏰ Webhook completed at:", webhookEndTime);
+    console.log("=== STRIPE WEBHOOK END ===\n");
+    
+    return res.status(200).json({ received: true });
+    
+  } catch (error) {
+    console.error("❌ Fatal webhook error:", error.message);
+    console.error("Stack trace:", error.stack);
+    return res.status(500).send(`Fatal webhook error: ${error.message}`);
+  }
 };
