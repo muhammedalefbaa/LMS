@@ -118,6 +118,17 @@ export const stripeWebhooks = async (req, res) => {
             return res.status(404).send(error);
           }
 
+          console.log("📦 Current User Data:", {
+            userId: userData._id,
+            name: userData.name,
+            currentEnrolledCourses: userData.enrolledCourses || []
+          });
+
+          console.log("📦 Course to Enroll:", {
+            courseId: courseData._id,
+            title: courseData.courseTitle
+          });
+
           // Convert user ID to ObjectId for course's enrolledStudents
           const userObjectId = mongoose.Types.ObjectId(userData._id);
           const courseObjectId = courseData._id; // Already an ObjectId
@@ -126,23 +137,51 @@ export const stripeWebhooks = async (req, res) => {
           const alreadyInCourse = courseData.enrolledStudents.some(id => id.equals(userObjectId));
           const alreadyInUser = userData.enrolledCourses.some(id => id.equals(courseObjectId));
           
-          console.log("Enrollment status check:", {
+          console.log("🔍 Enrollment Check:", {
             alreadyInCourse,
             alreadyInUser,
             userObjectId: userObjectId.toString(),
             courseObjectId: courseObjectId.toString()
           });
 
+          // Update enrollments
+          let updated = false;
+
           if (!alreadyInCourse) {
+            console.log("➡️ Adding user to course's enrolledStudents...");
             courseData.enrolledStudents.push(userObjectId);
             await courseData.save();
-            console.log("✅ Added user to course's enrolledStudents");
+            console.log("✅ Successfully added user to course's enrolledStudents");
+            updated = true;
+          } else {
+            console.log("ℹ️ User already in course's enrolledStudents");
           }
 
           if (!alreadyInUser) {
+            console.log("➡️ Adding course to user's enrolledCourses...");
+            console.log("Before update - enrolledCourses:", userData.enrolledCourses);
+            
             userData.enrolledCourses.push(courseObjectId);
-            await userData.save();
-            console.log("✅ Added course to user's enrolledCourses");
+            const savedUser = await userData.save();
+            
+            console.log("After update - enrolledCourses:", savedUser.enrolledCourses);
+            console.log("✅ Successfully added course to user's enrolledCourses");
+            updated = true;
+          } else {
+            console.log("ℹ️ Course already in user's enrolledCourses");
+          }
+
+          if (updated) {
+            // Verify the updates
+            const updatedUser = await User.findById(userData._id);
+            const updatedCourse = await Course.findById(courseData._id);
+            
+            console.log("🔍 Final Verification:", {
+              userHasCourse: updatedUser.enrolledCourses.some(id => id.equals(courseObjectId)),
+              courseHasUser: updatedCourse.enrolledStudents.some(id => id.equals(userObjectId)),
+              totalUserCourses: updatedUser.enrolledCourses.length,
+              totalCourseStudents: updatedCourse.enrolledStudents.length
+            });
           }
 
         } catch (error) {
