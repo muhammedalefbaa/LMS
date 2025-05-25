@@ -3,6 +3,7 @@ import User from "../models/user.js";
 import Stripe from "stripe";
 import Course from "../models/course.js";
 import Purchase from "../models/purchase.js";
+import mongoose from "mongoose";
 
 //api controller method to manage clerk user from database
 export const clerkWebhooks = async (req, res) => {
@@ -56,28 +57,10 @@ export const clerkWebhooks = async (req, res) => {
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 export const stripeWebhooks = async (req, res) => {
-  const webhookStartTime = new Date().toISOString();
   console.log("\n=== STRIPE WEBHOOK START ===");
-  console.log("⏰ Webhook received at:", webhookStartTime);
-  console.log("📝 Request Method:", req.method);
-  console.log("🔑 Stripe Signature:", req.headers["stripe-signature"]);
-  console.log("💡 Content-Type:", req.headers["content-type"]);
-  
   try {
-    // Log the raw body as string
-    const rawBody = req.body.toString('utf8');
-    console.log("📦 Raw Body Length:", rawBody.length);
-    console.log("📦 Raw Body Preview:", rawBody.substring(0, 100) + "...");
-
-    if (!process.env.STRIPE_WEBHOOK_SECRET) {
-      throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
-    }
-
     const sig = req.headers["stripe-signature"];
-    if (!sig) {
-      throw new Error("No stripe signature found in headers");
-    }
-
+    
     let event;
     try {
       event = stripeInstance.webhooks.constructEvent(
@@ -85,52 +68,97 @@ export const stripeWebhooks = async (req, res) => {
         sig,
         process.env.STRIPE_WEBHOOK_SECRET
       );
-      console.log("✅ Webhook signature verified successfully");
+      console.log("✅ Webhook signature verified");
     } catch (err) {
       console.error("❌ Webhook signature verification failed:", err.message);
-      console.error("Full error:", err);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    console.log("📦 Event type:", event.type);
-    console.log("📦 Event ID:", event.id);
-    
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      console.log("💳 Checkout Session ID:", session.id);
-      console.log("📋 Session Metadata:", session.metadata);
-      
-      try {
-        const purchaseId = session.metadata?.purchaseId;
-        if (!purchaseId) {
-          throw new Error("Purchase ID not found in metadata");
-        }
-        console.log("🔍 Looking up purchase:", purchaseId);
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
 
-        const purchaseData = await Purchase.findById(purchaseId);
-        if (!purchaseData) {
-          throw new Error(`Purchase not found: ${purchaseId}`);
+        try {
+          const purchaseId = session.metadata?.purchaseId;
+          console.log("📦 Purchase ID from metadata:", purchaseId);
+
+          if (!purchaseId) {
+            const error = "❌ purchaseId not found in metadata";
+            console.error(error);
+            console.error("Session metadata:", session.metadata);
+            return res.status(400).send(error);
+          }
+
+          const purchaseData = await Purchase.findById(purchaseId);
+          console.log("📦 Purchase data:", JSON.stringify(purchaseData, null, 2));
+          
+          if (!purchaseData) {
+            const error = `❌ Purchase not found in DB: ${purchaseId}`;
+            console.error(error);
+            return res.status(404).send(error);
+          }
+
+          // First update purchase status
+          purchaseData.status = "completed";
+          const updatedPurchase = await purchaseData.save();
+          console.log("✅ Purchase marked as completed");
+
+          // Then handle enrollment
+          const userData = await User.findById(purchaseData.userId);
+          const courseData = await Course.findById(purchaseData.courseId);
+
+          if (!userData || !courseData) {
+            const error = "❌ User or Course not found";
+            console.error(error, {
+              userFound: !!userData,
+              courseFound: !!courseData,
+              userId: purchaseData.userId,
+              courseId: purchaseData.courseId
+            });
+            return res.status(404).send(error);
+          }
+
+          // Convert user ID to ObjectId for course's enrolledStudents
+          const userObjectId = mongoose.Types.ObjectId(userData._id);
+          const courseObjectId = courseData._id; // Already an ObjectId
+
+          // Check if already enrolled
+          const alreadyInCourse = courseData.enrolledStudents.some(id => id.equals(userObjectId));
+          const alreadyInUser = userData.enrolledCourses.some(id => id.equals(courseObjectId));
+          
+          console.log("Enrollment status check:", {
+            alreadyInCourse,
+            alreadyInUser,
+            userObjectId: userObjectId.toString(),
+            courseObjectId: courseObjectId.toString()
+          });
+
+          if (!alreadyInCourse) {
+            courseData.enrolledStudents.push(userObjectId);
+            await courseData.save();
+            console.log("✅ Added user to course's enrolledStudents");
+          }
+
+          if (!alreadyInUser) {
+            userData.enrolledCourses.push(courseObjectId);
+            await userData.save();
+            console.log("✅ Added course to user's enrolledCourses");
+          }
+
+        } catch (error) {
+          console.error("❌ Error in checkout.session.completed:", error);
+          console.error("Error message:", error.message);
+          console.error("Error stack:", error.stack);
+          return res.status(500).send(`Error processing webhook: ${error.message}`);
         }
-        console.log("📝 Current purchase status:", purchaseData.status);
-        
-        // Update purchase status
-        purchaseData.status = "completed";
-        const updatedPurchase = await purchaseData.save();
-        console.log("✅ Updated purchase status to:", updatedPurchase.status);
-        
-        // Rest of your existing code for updating user and course...
-        
-      } catch (error) {
-        console.error("❌ Error processing checkout session:", error.message);
-        console.error("Full error:", error);
-        return res.status(500).send(`Error processing checkout: ${error.message}`);
+        break;
+      }
+      default: {
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
       }
     }
 
-    const webhookEndTime = new Date().toISOString();
-    console.log("⏰ Webhook completed at:", webhookEndTime);
     console.log("=== STRIPE WEBHOOK END ===\n");
-    
     return res.status(200).json({ received: true });
     
   } catch (error) {
