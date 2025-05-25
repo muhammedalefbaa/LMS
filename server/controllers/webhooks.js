@@ -100,10 +100,12 @@ export const stripeWebhooks = async (req, res) => {
 
           // First update purchase status
           purchaseData.status = "completed";
-          const updatedPurchase = await purchaseData.save();
+          await purchaseData.save();
           console.log("✅ Purchase marked as completed");
 
           // Then handle enrollment
+          console.log("🔄 Starting enrollment process...");
+          
           const userData = await User.findById(purchaseData.userId);
           const courseData = await Course.findById(purchaseData.courseId);
 
@@ -118,77 +120,51 @@ export const stripeWebhooks = async (req, res) => {
             return res.status(404).send(error);
           }
 
-          console.log("📦 Current User Data:", {
-            userId: userData._id,
-            name: userData.name,
-            currentEnrolledCourses: userData.enrolledCourses || []
+          console.log("📦 Initial User Data:", {
+            id: userData._id,
+            enrolledCourses: userData.enrolledCourses || []
           });
 
-          console.log("📦 Course to Enroll:", {
-            courseId: courseData._id,
-            title: courseData.courseTitle
-          });
+          // Direct update approach
+          try {
+            // 1. Update user's enrolledCourses
+            const result = await User.updateOne(
+              { _id: userData._id },
+              { $addToSet: { enrolledCourses: courseData._id } }
+            );
 
-          // Convert user ID to ObjectId for course's enrolledStudents
-          const userObjectId = mongoose.Types.ObjectId(userData._id);
-          const courseObjectId = courseData._id; // Already an ObjectId
+            console.log("📝 Update Result:", result);
 
-          // Check if already enrolled
-          const alreadyInCourse = courseData.enrolledStudents.some(id => id.equals(userObjectId));
-          const alreadyInUser = userData.enrolledCourses.some(id => id.equals(courseObjectId));
-          
-          console.log("🔍 Enrollment Check:", {
-            alreadyInCourse,
-            alreadyInUser,
-            userObjectId: userObjectId.toString(),
-            courseObjectId: courseObjectId.toString()
-          });
+            // 2. Update course's enrolledStudents
+            await Course.updateOne(
+              { _id: courseData._id },
+              { $addToSet: { enrolledStudents: userData._id } }
+            );
 
-          // Update enrollments
-          let updated = false;
-
-          if (!alreadyInCourse) {
-            console.log("➡️ Adding user to course's enrolledStudents...");
-            courseData.enrolledStudents.push(userObjectId);
-            await courseData.save();
-            console.log("✅ Successfully added user to course's enrolledStudents");
-            updated = true;
-          } else {
-            console.log("ℹ️ User already in course's enrolledStudents");
-          }
-
-          if (!alreadyInUser) {
-            console.log("➡️ Adding course to user's enrolledCourses...");
-            console.log("Before update - enrolledCourses:", userData.enrolledCourses);
-            
-            userData.enrolledCourses.push(courseObjectId);
-            const savedUser = await userData.save();
-            
-            console.log("After update - enrolledCourses:", savedUser.enrolledCourses);
-            console.log("✅ Successfully added course to user's enrolledCourses");
-            updated = true;
-          } else {
-            console.log("ℹ️ Course already in user's enrolledCourses");
-          }
-
-          if (updated) {
-            // Verify the updates
+            // 3. Verify the update
             const updatedUser = await User.findById(userData._id);
-            const updatedCourse = await Course.findById(courseData._id);
-            
-            console.log("🔍 Final Verification:", {
-              userHasCourse: updatedUser.enrolledCourses.some(id => id.equals(courseObjectId)),
-              courseHasUser: updatedCourse.enrolledStudents.some(id => id.equals(userObjectId)),
-              totalUserCourses: updatedUser.enrolledCourses.length,
-              totalCourseStudents: updatedCourse.enrolledStudents.length
+            console.log("✅ Updated User Data:", {
+              id: updatedUser._id,
+              enrolledCourses: updatedUser.enrolledCourses || []
             });
+
+            if (!updatedUser.enrolledCourses.includes(courseData._id)) {
+              throw new Error("Failed to update enrolledCourses");
+            }
+
+          } catch (error) {
+            console.error("❌ Error updating enrollments:", error);
+            console.error("Full error:", error.stack);
+            return res.status(500).send(`Error updating enrollments: ${error.message}`);
           }
 
         } catch (error) {
-          console.error("❌ Error in checkout.session.completed:", error);
-          console.error("Error message:", error.message);
-          console.error("Error stack:", error.stack);
-          return res.status(500).send(`Error processing webhook: ${error.message}`);
+          console.error("❌ Error processing checkout:", error);
+          console.error("Error details:", {
+            message: error.message,
+            stack: error.stack
+          });
+          return res.status(500).send(`Error processing checkout: ${error.message}`);
         }
         break;
       }
@@ -201,7 +177,7 @@ export const stripeWebhooks = async (req, res) => {
     return res.status(200).json({ received: true });
     
   } catch (error) {
-    console.error("❌ Fatal webhook error:", error.message);
+    console.error("❌ Fatal webhook error:", error);
     console.error("Stack trace:", error.stack);
     return res.status(500).send(`Fatal webhook error: ${error.message}`);
   }
