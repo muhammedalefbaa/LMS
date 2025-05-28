@@ -186,8 +186,8 @@ export const updateUserCourseProgress = async (req, res) => {
 export const getUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    const { courseId } = req.body;
-    const progressData = await courseProgress.findOne({ userId, courseId });
+    // Get all progress data for the user
+    const progressData = await courseProgress.find({ userId });
     res.json({ success: true, progressData });
   } catch (error) {
     res.json({ success: false, message: error.message });
